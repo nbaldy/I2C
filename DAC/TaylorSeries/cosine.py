@@ -1,6 +1,6 @@
 import smbus #allow use of SMbus Library import time #allows pauses to make more managable 
 bus = smbus.SMBus(1) #Raspberry Pi 3 B only enables SMBus 1
-import time 
+import time
 DAC_addr = 0x62 #address of MCP4725
 write_DAC_only = 0x40 #command to write to DAC Register only
 
@@ -19,14 +19,13 @@ def writeVolts(volts): #sends data to DAC to output given voltage
 
 
 def approxCos(theta): #approximates the cosine value using the taylor series for cos(x)
-	return (1 - (1/2*theta**2) + (1/24*theta**4) - (1/720*theta**6));
-
+	return (1 - (theta**2)/2 + (theta**4)/24 - (theta**6)/720 +(theta**8)/40320)
 period = 1.0/input("Frequency (Hz): ")
 incrementTime = period / 628 #number of increments
-A = input("Max voltage: ")/2
+A = input("Max voltage: ")
 while(True):
 	x = -3.14
 	while(x < 3.14):
-		writeVolts(A*approxCos(x) - 1/2*A)
+		writeVolts(A/2.0*(1 + approxCos(x)))
 		time.sleep(incrementTime)
-		x+=.01;
+		x+=.01
