@@ -1,82 +1,86 @@
-import smbus #required for communication with device 
+import smbus #required for communication with device
 bus = smbus.SMBus(1) #or SMBus(0) for raspberry pi 2 and earlier (?)
-import time # 2 sps (1 from A0 and A1, and one from A2 and A3)  
+import time # 2 sps (1 from A0 and A1, and one from A2 and A3
 
-# Nicole Baldu
+# Nicole Baldy
 # University of Akron
 # Created 04/15/18
-# Purpose: To sample voltage levels once per second using the ads1015 Analog-to-Digital Converter
+# Last Modified: 5/3/18 
+# Purpose: To sample voltage levels at two different points once per second using the ads1015 Analog-to-Digital Converter
 
 Address = 0x48 #I2C address of ads1015 with ADDR pin connected to gnd
 
-def swap2Bytes(data): 
+def swap2Bytes(data):
   #different Endians, so swap the 2 bytes of transmitted "data"
   	data = ((data & 0x00ff) << 8) + ((data|0x0000) >> 8)
 	#	     LSB shifted forward 	        MSB shifted back
 	return data
-  
+
 def configure01():
 	#Sets config register
 	# Bit [15]:	1 - begin conversion
-	# Bits [14:12]:	000 - Compare A0 and A1 
-	# Bits [11:9]:	001 - range is (+) or (1) 4.096V    
+	# Bits [14:12]:	000 - Compare A0 and A1
+	# Bits [11:9]:	001 - range is (+) or (1) 4.096V
 	# Bit [8]:	1 - Single Conversion mode
 	# Bits [7:5]	100 - 1600 SPS (default)
 	# Bit [4]	0 - Traditional Comparator
 	# Bit [3]	0 - Comparator Polarity Active Low (default - irrelevant?)
 	# Bit [2	0 - Non-latching comparator (default - irrelevant?)
 	# Bits [1:0]	00 - Assert after 1 conversion (?)
-  
+
 	configData = 0x8380
 	bus.write_word_data(Address, 1, swap2Bytes(configData))
-  
+
 def configure23():
 	#Sets config register
 	# Bit [15]:	1 - begin conversion
-	# Bits [14:12]:	011 - Compare A0 and A1 
-	# Bits [11:9]:	001 - range is (+) or (1) 4.096V    
+	# Bits [14:12]:	011 - Compare A2 and A3
+	# Bits [11:9]:	001 - range is (+) or (1) 4.096V
 	# Bit [8]:	1 - Single Conversion mode
 	# Bits [7:5]	100 - 1600 SPS (default)
 	# Bit [4]	0 - Traditional Comparator
 	# Bit [3]	0 - Comparator Polarity Active Low (default - irrelevant?)
 	# Bit [2	0 - Non-latching comparator (default - irrelevant?)
 	# Bits [1:0]	00 - Assert after 1 conversion (?)
-  
-	configData = 0xB2380
+
+	configData = 0xB380
 	bus.write_word_data(Address, 1, swap2Bytes(configData))
 
 
 def read01():
 	configure01() #perform conversion between A0 and A1
 	#reads data from serial bus, note NOT SWAPPED, 16 bits, only first 12 relevant
+	time.sleep(.02) #time to convert
 	data = bus.read_word_data(Address, 0)
 	return data
 
 def read23():
 	configure23() #perform conversion between A2 and A3
+	time.sleep(.02) #time to convert
 	#reads data from serial bus, note NOT SWAPPED, 16 bits, only first 12 relevant
 	data = bus.read_word_data(Address, 0)
 	return data
 
-def toVolts(data): 
-	#convert (NOTE: 12bit, so pre-shifted) data to Voltage  
+def toVolts(data):
+	#convert (NOTE: 12bit, so pre-shifted) data to Voltage
 	#Calculate 2's Complement
 	data = (-1)*(data>>11)*(2**11) + (data&0x7FF)
-	#	(-1) * msb *2^11       + the positive part 
-	
-	# 2mV per bit
-	return (data*.002) 
+	#	(-1) * msb *2^11       + the positive part
 
-configure()
-while True: 
+	# 2mV per bit
+	return (data*.002)
+
+while True:
+	#conversion between A0 and A1
 	data01 = swap2Bytes(read01()) >> 4
 	#swap and drop last 4 bits
 
-	data01 = swap2Bytes(read24()) >> 4
+	#conversion between A2 and A3
+	data23 = swap2Bytes(read23()) >> 4
 	#swap and drop last 4 bits
 
 	print "A0 and A1: ", toVolts(data01)
 	print "A2 and A3: ", toVolts(data23)
-
-	time.sleep(1) 
-	#wait for a second before performing 2 more conversions
+	print "\n"
+	time.sleep(.96)
+	#wait for the rest of a second before performing repeating conversions
